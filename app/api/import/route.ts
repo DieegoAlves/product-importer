@@ -51,49 +51,12 @@ export async function POST(req: Request) {
     
     console.log(`Processando ${limitedImages.length} imagens`);
     
-    // Array para armazenar as imagens processadas
-    const processedImages = [];
+    // Preparar as imagens para a API - usando URLs diretas em vez de baixar e converter para base64
+    const images = limitedImages.map((url: string) => ({
+      src: url
+    }));
     
-    // Processar cada imagem
-    for (const imageUrl of limitedImages) {
-      try {
-        console.log(`Baixando imagem: ${imageUrl}`);
-        
-        // Baixar a imagem
-        const imageResponse = await fetch(imageUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          },
-        });
-        
-        if (!imageResponse.ok) {
-          console.error(`Erro ao baixar imagem ${imageUrl}: ${imageResponse.status} ${imageResponse.statusText}`);
-          continue;
-        }
-        
-        // Converter para buffer e depois para base64
-        const arrayBuffer = await imageResponse.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const base64Image = buffer.toString('base64');
-        
-        // Obter o nome do arquivo da URL
-        const urlParts = imageUrl.split('/');
-        const filename = urlParts[urlParts.length - 1].split('?')[0] || 'product-image.jpg';
-        
-        // Adicionar a imagem processada ao array
-        processedImages.push({
-          attachment: base64Image,
-          filename: filename
-        });
-        
-        console.log(`Imagem processada: ${filename}`);
-        
-      } catch (error) {
-        console.error(`Erro ao processar imagem ${imageUrl}:`, error);
-      }
-    }
-    
-    console.log(`Total de ${processedImages.length} imagens processadas com sucesso`);
+    console.log(`Total de ${images.length} imagens processadas com sucesso`);
     
     // Definir a query GraphQL para criar o produto
     const query = `
@@ -158,12 +121,6 @@ export async function POST(req: Request) {
         title: 'Padrão'
       }];
     }
-
-    // Preparar as imagens para a API
-    const images = processedImages.map(img => ({
-      src: `data:image/jpeg;base64,${img.attachment}`,
-      alt: img.filename
-    }));
 
     // Preparar os dados para a API REST do Shopify
     const productPayload = {
