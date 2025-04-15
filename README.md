@@ -92,10 +92,6 @@ The application uses a modular scraper architecture:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## Acknowledgments
 
 - Powered by [Windsurf](https://windsurf.com/)
