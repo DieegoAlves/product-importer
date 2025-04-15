@@ -1,4 +1,4 @@
-# Product Importer
+# Shopify Product Importer
 
 A powerful web application that scrapes product data from various e-commerce platforms and imports them directly into your Shopify store.
 
