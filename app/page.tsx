@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   Page,
@@ -46,6 +46,11 @@ interface EditingFields {
   description: boolean;
 }
 
+interface ShopifyCredentials {
+  shopDomain: string;
+  accessToken: string;
+}
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -62,6 +67,42 @@ export default function Home() {
   });
   const [storeType, setStoreType] = useState('vtex');
   const [importProgress, setImportProgress] = useState(0);
+  const [shopifyCredentials, setShopifyCredentials] = useState<ShopifyCredentials>({
+    shopDomain: '',
+    accessToken: ''
+  });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+
+  // Load saved Shopify credentials from localStorage on component mount
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem('shopifyCredentials');
+    if (savedCredentials) {
+      try {
+        const parsedCredentials = JSON.parse(savedCredentials);
+        setShopifyCredentials(parsedCredentials);
+      } catch (error) {
+        console.error('Error parsing saved Shopify credentials:', error);
+      }
+    }
+  }, []);
+
+  // Save Shopify credentials to localStorage
+  const saveShopifyCredentials = () => {
+    localStorage.setItem('shopifyCredentials', JSON.stringify(shopifyCredentials));
+    setShowSettingsModal(false);
+    toast.success('Credenciais do Shopify salvas com sucesso!');
+  };
+
+  // Clear Shopify credentials from localStorage
+  const clearShopifyCredentials = () => {
+    localStorage.removeItem('shopifyCredentials');
+    setShopifyCredentials({
+      shopDomain: '',
+      accessToken: ''
+    });
+    setShowSettingsModal(false);
+    toast.success('Credenciais do Shopify removidas com sucesso!');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,6 +154,14 @@ export default function Home() {
 
   const importToShopify = async () => {
     if (!editedProductData) return;
+    
+    // Check if Shopify credentials are set
+    if (!shopifyCredentials.shopDomain || !shopifyCredentials.accessToken) {
+      toast.error('Credenciais do Shopify não configuradas. Configure-as nas configurações.');
+      setShowSettingsModal(true);
+      return;
+    }
+    
     setImporting(true);
     setImportProgress(0);
 
@@ -125,7 +174,8 @@ export default function Home() {
       // Criar o objeto de produto com as imagens selecionadas
       const productToImport = {
         ...editedProductData,
-        images: selectedImagesArray
+        images: selectedImagesArray,
+        shopifyCredentials: shopifyCredentials // Include credentials in the request
       };
 
       setImportProgress(30);
@@ -232,6 +282,14 @@ export default function Home() {
             <Text as="h2" variant="headingMd">
               Insira a URL do produto
             </Text>
+            <InlineStack align="end">
+              <Button 
+                onClick={() => setShowSettingsModal(true)}
+                variant="plain"
+              >
+                Configurações do Shopify
+              </Button>
+            </InlineStack>
             <Form onSubmit={handleSubmit}>
               <FormLayout>
                 <Select
@@ -436,6 +494,49 @@ export default function Home() {
           </Card>
         )}
       </BlockStack>
+
+      {/* Settings Modal for Shopify Credentials */}
+      <Modal
+        open={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        title="Configurações do Shopify"
+        primaryAction={{
+          content: 'Salvar',
+          onAction: saveShopifyCredentials,
+        }}
+        secondaryActions={[
+          {
+            content: 'Limpar credenciais',
+            destructive: true,
+            onAction: clearShopifyCredentials,
+          },
+          {
+            content: 'Cancelar',
+            onAction: () => setShowSettingsModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <TextField
+              label="Domínio da loja Shopify"
+              value={shopifyCredentials.shopDomain}
+              onChange={(value) => setShopifyCredentials({...shopifyCredentials, shopDomain: value})}
+              autoComplete="off"
+              placeholder="sua-loja.myshopify.com"
+              helpText="Exemplo: sua-loja.myshopify.com (sem https:// ou /)"
+            />
+            <TextField
+              label="Token de acesso Shopify"
+              value={shopifyCredentials.accessToken}
+              onChange={(value) => setShopifyCredentials({...shopifyCredentials, accessToken: value})}
+              autoComplete="off"
+              type="password"
+              helpText="Token de acesso da API Shopify Admin"
+            />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }
