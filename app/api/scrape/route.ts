@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
 import { ScraperFactory } from '../../lib/scrapers/scraper-factory';
+import { setupPuppeteer } from '../../lib/puppeteer-config';
 
 export async function POST(req: Request) {
   try {
@@ -20,21 +22,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'URL inválida' }, { status: 400 });
     }
     
-    // Iniciar o navegador Puppeteer
-    const browser = await puppeteer.launch({
-      headless: true, // Use headless mode
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--disable-gpu',
-        '--single-process'
-      ],
-      executablePath: process.env.NODE_ENV === 'production' 
-        ? process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
-        : puppeteer.executablePath()
-    });
+    // Iniciar o navegador Puppeteer usando a configuração otimizada
+    const browser = await setupPuppeteer();
     
     try {
       // Abrir uma nova página

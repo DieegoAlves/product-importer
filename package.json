@@ -7,12 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "npx puppeteer browsers install chrome"
+    "postinstall": "npx puppeteer browsers install chrome && npx @sparticuz/chromium@135.0.0"
   },
   "dependencies": {
     "@shopify/admin-api-client": "latest",
     "@shopify/polaris": "^13.9.5",
     "@shopify/polaris-icons": "^9.3.1",
+    "@sparticuz/chromium": "^133.0.0",
     "cheerio": "^1.0.0-rc.12",
     "next": "14.1.0",
     "node-fetch": "^2.7.0",

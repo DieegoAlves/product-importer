@@ -6,7 +6,7 @@
   "regions": ["gru1"],
   "functions": {
     "app/api/**/*": {
-      "memory": 1024,
+      "memory": 3008,
       "maxDuration": 60
     }
   }
