@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   Page,
@@ -23,7 +23,7 @@ import {
   ButtonGroup,
   Icon,
   Select,
-  ProgressBar,
+  ProgressBar
 } from '@shopify/polaris';
 import { EditIcon } from '@shopify/polaris-icons';
 
@@ -31,6 +31,7 @@ interface ProductData {
   title: string;
   price: string;
   description: string;
+  descriptionHtml?: string;
   images: string[];
   variants?: Array<{
     title?: string;
@@ -44,6 +45,11 @@ interface EditingFields {
   title: boolean;
   price: boolean;
   description: boolean;
+}
+
+interface ShopifyCredentials {
+  shopDomain: string;
+  accessToken: string;
 }
 
 export default function Home() {
@@ -62,6 +68,43 @@ export default function Home() {
   });
   const [storeType, setStoreType] = useState('vtex');
   const [importProgress, setImportProgress] = useState(0);
+  const [shopifyCredentials, setShopifyCredentials] = useState<ShopifyCredentials>({
+    shopDomain: '',
+    accessToken: ''
+  });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [useFormattedDescription, setUseFormattedDescription] = useState(true);
+
+  // Load saved Shopify credentials from localStorage on component mount
+  useEffect(() => {
+    const savedCredentials = localStorage.getItem('shopifyCredentials');
+    if (savedCredentials) {
+      try {
+        const parsedCredentials = JSON.parse(savedCredentials);
+        setShopifyCredentials(parsedCredentials);
+      } catch (error) {
+        console.error('Error parsing saved Shopify credentials:', error);
+      }
+    }
+  }, []);
+
+  // Save Shopify credentials to localStorage
+  const saveShopifyCredentials = () => {
+    localStorage.setItem('shopifyCredentials', JSON.stringify(shopifyCredentials));
+    setShowSettingsModal(false);
+    toast.success('Credenciais do Shopify salvas com sucesso!');
+  };
+
+  // Clear Shopify credentials from localStorage
+  const clearShopifyCredentials = () => {
+    localStorage.removeItem('shopifyCredentials');
+    setShopifyCredentials({
+      shopDomain: '',
+      accessToken: ''
+    });
+    setShowSettingsModal(false);
+    toast.success('Credenciais do Shopify removidas com sucesso!');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +135,8 @@ export default function Home() {
       // Inicializar todas as imagens como selecionadas
       const initialSelectedImages: {[key: string]: boolean} = {};
       data.images.forEach((image: string, index: number) => {
-        initialSelectedImages[index] = true;
+        // Apenas as 5 primeiras imagens serão pré-selecionadas
+        initialSelectedImages[index] = index < 5;
       });
       setSelectedImages(initialSelectedImages);
 
@@ -113,6 +157,14 @@ export default function Home() {
 
   const importToShopify = async () => {
     if (!editedProductData) return;
+    
+    // Check if Shopify credentials are set
+    if (!shopifyCredentials.shopDomain || !shopifyCredentials.accessToken) {
+      toast.error('Credenciais do Shopify não configuradas. Configure-as nas configurações.');
+      setShowSettingsModal(true);
+      return;
+    }
+    
     setImporting(true);
     setImportProgress(0);
 
@@ -122,10 +174,18 @@ export default function Home() {
         selectedImages[index]
       );
 
+      // Determinar qual descrição usar (formatada ou texto simples)
+      let descriptionToUse = editedProductData.description;
+      if (useFormattedDescription && editedProductData.descriptionHtml) {
+        descriptionToUse = editedProductData.descriptionHtml;
+      }
+
       // Criar o objeto de produto com as imagens selecionadas
       const productToImport = {
         ...editedProductData,
-        images: selectedImagesArray
+        images: selectedImagesArray,
+        description: descriptionToUse,
+        shopifyCredentials: shopifyCredentials // Include credentials in the request
       };
 
       setImportProgress(30);
@@ -206,7 +266,7 @@ export default function Home() {
 
   return (
     <Page
-      title="Importador de Produtos VTEX para Shopify"
+      title="Importador de Produtos para Shopify"
       primaryAction={
         productData && {
           content: "Importar para Shopify",
@@ -229,20 +289,53 @@ export default function Home() {
 
         <Card>
           <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              Insira a URL do produto
-            </Text>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              background: 'linear-gradient(to right, #f5f7ff, #edf5ff)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                  <img 
+                    src="https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" 
+                    alt="Shopify" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+                <div>
+                  <Text as="p" variant="bodyMd">
+                    Developed by <a href="https://www.linkedin.com/in/dieegoalves/" style={{ color: '#468321', textDecoration: 'none', fontWeight: 500 }}>Diego Alves</a>
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Powered by <a href="https://windsurf.com/" style={{ color: '#468321', textDecoration: 'none' }}>Windsurf</a>
+                  </Text>
+                </div>
+              </div>
+              <div>
+                <Button 
+                  onClick={() => setShowSettingsModal(true)}
+                  variant="plain"
+                  size="slim"
+                >
+                  Configurações do Shopify
+                </Button>
+              </div>
+            </div>
             <Form onSubmit={handleSubmit}>
               <FormLayout>
                 <Select
                   label="Tipo de loja"
                   options={[
                     {label: 'VTEX', value: 'vtex'},
+                    {label: 'MercadoLivre', value: 'mercadolivre'},
                     {label: 'Outro', value: 'other'}
                   ]}
                   value={storeType}
                   onChange={setStoreType}
-                  helpText="Selecione VTEX para melhor extração de dados"
+                  helpText="Selecione o tipo de loja para melhor extração de dados"
                 />
                 <TextField
                   label="URL do produto"
@@ -372,6 +465,24 @@ export default function Home() {
                     </Button>
                   </InlineStack>
                   
+                  <InlineStack align="start" blockAlign="center" gap="200">
+                    <Text as="span" variant="bodyMd">Formato da descrição:</Text>
+                    <ButtonGroup>
+                      <Button
+                        pressed={useFormattedDescription}
+                        onClick={() => setUseFormattedDescription(true)}
+                      >
+                        HTML formatado
+                      </Button>
+                      <Button
+                        pressed={!useFormattedDescription}
+                        onClick={() => setUseFormattedDescription(false)}
+                      >
+                        Texto simples
+                      </Button>
+                    </ButtonGroup>
+                  </InlineStack>
+                  
                   {inlineEditing.description ? (
                     <TextField
                       label="Descrição"
@@ -387,12 +498,38 @@ export default function Home() {
                       }
                     />
                   ) : (
-                    <Box paddingBlock="200">
-                      <Text as="p">
-                        {editedProductData.description || 'Sem descrição'}
-                      </Text>
+                    <Box 
+                      paddingBlock="200" 
+                      background="bg-surface" 
+                      borderWidth="025" 
+                      borderRadius="100" 
+                      borderColor="border"
+                      padding="400"
+                    >
+                      {useFormattedDescription && editedProductData.descriptionHtml ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: editedProductData.descriptionHtml }}
+                          style={{ 
+                            maxHeight: '300px', 
+                            overflowY: 'auto',
+                            padding: '8px'
+                          }}
+                        />
+                      ) : (
+                        <Text as="p">
+                          {editedProductData.description || 'Sem descrição'}
+                        </Text>
+                      )}
                     </Box>
                   )}
+                  
+                  <Banner tone="info">
+                    <Text as="p" variant="bodyMd">
+                      {useFormattedDescription 
+                        ? "A descrição será importada para o Shopify mantendo a formatação HTML original." 
+                        : "A descrição será importada para o Shopify como texto simples."}
+                    </Text>
+                  </Banner>
                 </BlockStack>
 
                 <Divider />
@@ -410,8 +547,10 @@ export default function Home() {
                             opacity: selectedImages[index] ? 1 : 0.5,
                             border: selectedImages[index] ? '2px solid #008060' : '2px solid transparent',
                             borderRadius: '8px',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            cursor: 'pointer' // Adicionar cursor pointer para indicar que é clicável
                           }}
+                          onClick={() => toggleImageSelection(index)} // Adicionar evento de clique na imagem
                         >
                           <Thumbnail
                             source={image}
@@ -419,13 +558,16 @@ export default function Home() {
                             size="large"
                           />
                         </div>
-                        <div style={{ marginTop: '8px' }}>
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
                           <Checkbox
-                            label="Selecionar"
+                            label={`Imagem ${index + 1}`}
                             labelHidden
                             checked={selectedImages[index]}
                             onChange={() => toggleImageSelection(index)}
                           />
+                          <Text as="span" variant="bodySm" tone={selectedImages[index] ? "success" : "subdued"}>
+                            {selectedImages[index] ? "Selecionada" : "Não selecionada"}
+                          </Text>
                         </div>
                       </div>
                     ))}
@@ -436,6 +578,49 @@ export default function Home() {
           </Card>
         )}
       </BlockStack>
+
+      {/* Settings Modal for Shopify Credentials */}
+      <Modal
+        open={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        title="Configurações do Shopify"
+        primaryAction={{
+          content: 'Salvar',
+          onAction: saveShopifyCredentials,
+        }}
+        secondaryActions={[
+          {
+            content: 'Limpar credenciais',
+            destructive: true,
+            onAction: clearShopifyCredentials,
+          },
+          {
+            content: 'Cancelar',
+            onAction: () => setShowSettingsModal(false),
+          },
+        ]}
+      >
+        <Modal.Section>
+          <FormLayout>
+            <TextField
+              label="Domínio da loja Shopify"
+              value={shopifyCredentials.shopDomain}
+              onChange={(value) => setShopifyCredentials({...shopifyCredentials, shopDomain: value})}
+              autoComplete="off"
+              placeholder="sua-loja.myshopify.com"
+              helpText="Exemplo: sua-loja.myshopify.com (sem https:// ou /)"
+            />
+            <TextField
+              label="Token de acesso Shopify"
+              value={shopifyCredentials.accessToken}
+              onChange={(value) => setShopifyCredentials({...shopifyCredentials, accessToken: value})}
+              autoComplete="off"
+              type="password"
+              helpText="Token de acesso da API Shopify Admin"
+            />
+          </FormLayout>
+        </Modal.Section>
+      </Modal>
     </Page>
   );
 }

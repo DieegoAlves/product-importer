@@ -12,14 +12,15 @@ export async function POST(req: Request) {
     
     console.log('Dados do produto recebidos:', productData);
     
-    // Obter credenciais do Shopify das variáveis de ambiente
-    const shopifyDomain = process.env.SHOPIFY_SHOP_DOMAIN;
-    const accessToken = process.env.SHOPIFY_ACCESS_TOKEN;
+    // Obter credenciais do Shopify da requisição ou das variáveis de ambiente como fallback
+    const shopifyCredentials = productData.shopifyCredentials || {};
+    const shopifyDomain = shopifyCredentials.shopDomain || process.env.SHOPIFY_SHOP_DOMAIN;
+    const accessToken = shopifyCredentials.accessToken || process.env.SHOPIFY_ACCESS_TOKEN;
     
     if (!shopifyDomain || !accessToken) {
       console.error('Credenciais do Shopify não configuradas');
       return NextResponse.json(
-        { error: 'Credenciais do Shopify não configuradas' },
+        { error: 'Credenciais do Shopify não configuradas. Por favor, configure nas configurações.' },
         { status: 500 }
       );
     }
@@ -30,6 +31,10 @@ export async function POST(req: Request) {
     // Preparar os dados para a API
     const title = productData.title || 'Produto Sem Título';
     const description = productData.description || '';
+    
+    // Garantir que a descrição seja tratada como HTML se contiver tags
+    const hasHtmlTags = /<[a-z][\s\S]*>/i.test(description);
+    const body_html = hasHtmlTags ? description : description.replace(/\n/g, '<br>');
     
     // Garantir que o preço seja um valor numérico válido
     let price = '0.00';
@@ -126,7 +131,7 @@ export async function POST(req: Request) {
     const productPayload = {
       product: {
         title: title,
-        body_html: description,
+        body_html: body_html,
         vendor: "Importado",
         product_type: "Produto Importado",
         status: "active",
