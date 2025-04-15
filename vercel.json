@@ -1,13 +1,11 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["gru1"],
   "functions": {
-    "app/api/**/*.ts": {
+    "app/api/**/*": {
       "memory": 1024,
       "maxDuration": 60
     }
