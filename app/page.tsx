@@ -23,7 +23,7 @@ import {
   ButtonGroup,
   Icon,
   Select,
-  ProgressBar,
+  ProgressBar
 } from '@shopify/polaris';
 import { EditIcon } from '@shopify/polaris-icons';
 
@@ -266,7 +266,7 @@ export default function Home() {
 
   return (
     <Page
-      title="Importador de Produtos VTEX para Shopify"
+      title="Importador de Produtos para Shopify"
       primaryAction={
         productData && {
           content: "Importar para Shopify",
@@ -289,28 +289,53 @@ export default function Home() {
 
         <Card>
           <BlockStack gap="400">
-            <Text as="h2" variant="headingMd">
-              Insira a URL do produto
-            </Text>
-            <InlineStack align="end">
-              <Button 
-                onClick={() => setShowSettingsModal(true)}
-                variant="plain"
-              >
-                Configurações do Shopify
-              </Button>
-            </InlineStack>
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between', 
+              padding: '12px', 
+              borderRadius: '8px', 
+              background: 'linear-gradient(to right, #f5f7ff, #edf5ff)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+                  <img 
+                    src="https://cdn3.iconfinder.com/data/icons/social-media-2068/64/_shopping-512.png" 
+                    alt="Shopify" 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+                <div>
+                  <Text as="p" variant="bodyMd">
+                    Developed by <a href="https://www.linkedin.com/in/dieegoalves/" style={{ color: '#468321', textDecoration: 'none', fontWeight: 500 }}>Diego Alves</a>
+                  </Text>
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    Powered by <a href="https://windsurf.com/" style={{ color: '#468321', textDecoration: 'none' }}>Windsurf</a>
+                  </Text>
+                </div>
+              </div>
+              <div>
+                <Button 
+                  onClick={() => setShowSettingsModal(true)}
+                  variant="plain"
+                  size="slim"
+                >
+                  Configurações do Shopify
+                </Button>
+              </div>
+            </div>
             <Form onSubmit={handleSubmit}>
               <FormLayout>
                 <Select
                   label="Tipo de loja"
                   options={[
                     {label: 'VTEX', value: 'vtex'},
+                    {label: 'MercadoLivre', value: 'mercadolivre'},
                     {label: 'Outro', value: 'other'}
                   ]}
                   value={storeType}
                   onChange={setStoreType}
-                  helpText="Selecione VTEX para melhor extração de dados"
+                  helpText="Selecione o tipo de loja para melhor extração de dados"
                 />
                 <TextField
                   label="URL do produto"
