@@ -1,0 +1,13 @@
+{
+  "buildCommand": "npm run build",
+  "devCommand": "npm run dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["gru1"],
+  "functions": {
+    "app/api/**/*": {
+      "memory": 1024,
+      "maxDuration": 60
+    }
+  }
+}

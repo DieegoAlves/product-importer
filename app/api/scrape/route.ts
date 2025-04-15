@@ -22,14 +22,18 @@ export async function POST(req: Request) {
     
     // Iniciar o navegador Puppeteer
     const browser = await puppeteer.launch({
-      headless: true, // Usar o modo headless
+      headless: true, // Use headless mode
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
         '--disable-accelerated-2d-canvas',
-        '--disable-gpu'
-      ]
+        '--disable-gpu',
+        '--single-process'
+      ],
+      executablePath: process.env.NODE_ENV === 'production' 
+        ? process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath()
+        : puppeteer.executablePath()
     });
     
     try {
