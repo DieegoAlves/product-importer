@@ -31,6 +31,7 @@ interface ProductData {
   title: string;
   price: string;
   description: string;
+  descriptionHtml?: string;
   images: string[];
   variants?: Array<{
     title?: string;
@@ -72,6 +73,7 @@ export default function Home() {
     accessToken: ''
   });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [useFormattedDescription, setUseFormattedDescription] = useState(true);
 
   // Load saved Shopify credentials from localStorage on component mount
   useEffect(() => {
@@ -133,7 +135,8 @@ export default function Home() {
       // Inicializar todas as imagens como selecionadas
       const initialSelectedImages: {[key: string]: boolean} = {};
       data.images.forEach((image: string, index: number) => {
-        initialSelectedImages[index] = true;
+        // Apenas as 5 primeiras imagens serão pré-selecionadas
+        initialSelectedImages[index] = index < 5;
       });
       setSelectedImages(initialSelectedImages);
 
@@ -171,10 +174,17 @@ export default function Home() {
         selectedImages[index]
       );
 
+      // Determinar qual descrição usar (formatada ou texto simples)
+      let descriptionToUse = editedProductData.description;
+      if (useFormattedDescription && editedProductData.descriptionHtml) {
+        descriptionToUse = editedProductData.descriptionHtml;
+      }
+
       // Criar o objeto de produto com as imagens selecionadas
       const productToImport = {
         ...editedProductData,
         images: selectedImagesArray,
+        description: descriptionToUse,
         shopifyCredentials: shopifyCredentials // Include credentials in the request
       };
 
@@ -430,6 +440,24 @@ export default function Home() {
                     </Button>
                   </InlineStack>
                   
+                  <InlineStack align="start" blockAlign="center" gap="200">
+                    <Text as="span" variant="bodyMd">Formato da descrição:</Text>
+                    <ButtonGroup>
+                      <Button
+                        pressed={useFormattedDescription}
+                        onClick={() => setUseFormattedDescription(true)}
+                      >
+                        HTML formatado
+                      </Button>
+                      <Button
+                        pressed={!useFormattedDescription}
+                        onClick={() => setUseFormattedDescription(false)}
+                      >
+                        Texto simples
+                      </Button>
+                    </ButtonGroup>
+                  </InlineStack>
+                  
                   {inlineEditing.description ? (
                     <TextField
                       label="Descrição"
@@ -445,12 +473,38 @@ export default function Home() {
                       }
                     />
                   ) : (
-                    <Box paddingBlock="200">
-                      <Text as="p">
-                        {editedProductData.description || 'Sem descrição'}
-                      </Text>
+                    <Box 
+                      paddingBlock="200" 
+                      background="bg-surface" 
+                      borderWidth="025" 
+                      borderRadius="100" 
+                      borderColor="border"
+                      padding="400"
+                    >
+                      {useFormattedDescription && editedProductData.descriptionHtml ? (
+                        <div 
+                          dangerouslySetInnerHTML={{ __html: editedProductData.descriptionHtml }}
+                          style={{ 
+                            maxHeight: '300px', 
+                            overflowY: 'auto',
+                            padding: '8px'
+                          }}
+                        />
+                      ) : (
+                        <Text as="p">
+                          {editedProductData.description || 'Sem descrição'}
+                        </Text>
+                      )}
                     </Box>
                   )}
+                  
+                  <Banner tone="info">
+                    <Text as="p" variant="bodyMd">
+                      {useFormattedDescription 
+                        ? "A descrição será importada para o Shopify mantendo a formatação HTML original." 
+                        : "A descrição será importada para o Shopify como texto simples."}
+                    </Text>
+                  </Banner>
                 </BlockStack>
 
                 <Divider />
@@ -468,8 +522,10 @@ export default function Home() {
                             opacity: selectedImages[index] ? 1 : 0.5,
                             border: selectedImages[index] ? '2px solid #008060' : '2px solid transparent',
                             borderRadius: '8px',
-                            overflow: 'hidden'
+                            overflow: 'hidden',
+                            cursor: 'pointer' // Adicionar cursor pointer para indicar que é clicável
                           }}
+                          onClick={() => toggleImageSelection(index)} // Adicionar evento de clique na imagem
                         >
                           <Thumbnail
                             source={image}
@@ -477,13 +533,16 @@ export default function Home() {
                             size="large"
                           />
                         </div>
-                        <div style={{ marginTop: '8px' }}>
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'center' }}>
                           <Checkbox
-                            label="Selecionar"
+                            label={`Imagem ${index + 1}`}
                             labelHidden
                             checked={selectedImages[index]}
                             onChange={() => toggleImageSelection(index)}
                           />
+                          <Text as="span" variant="bodySm" tone={selectedImages[index] ? "success" : "subdued"}>
+                            {selectedImages[index] ? "Selecionada" : "Não selecionada"}
+                          </Text>
                         </div>
                       </div>
                     ))}

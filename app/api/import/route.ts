@@ -32,6 +32,10 @@ export async function POST(req: Request) {
     const title = productData.title || 'Produto Sem Título';
     const description = productData.description || '';
     
+    // Garantir que a descrição seja tratada como HTML se contiver tags
+    const hasHtmlTags = /<[a-z][\s\S]*>/i.test(description);
+    const body_html = hasHtmlTags ? description : description.replace(/\n/g, '<br>');
+    
     // Garantir que o preço seja um valor numérico válido
     let price = '0.00';
     if (productData.price) {
@@ -127,7 +131,7 @@ export async function POST(req: Request) {
     const productPayload = {
       product: {
         title: title,
-        body_html: description,
+        body_html: body_html,
         vendor: "Importado",
         product_type: "Produto Importado",
         status: "active",

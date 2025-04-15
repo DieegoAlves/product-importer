@@ -252,6 +252,17 @@ export async function POST(req: Request) {
           }
           return '';
         };
+
+        // Função auxiliar para extrair HTML com fallbacks
+        const extractHtml = (selectors: string[]): string => {
+          for (const selector of selectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+              return element.innerHTML;
+            }
+          }
+          return '';
+        };
         
         // Função para extrair imagens com fallbacks
         const extractImages = (selectors: string[]): string[] => {
@@ -305,7 +316,22 @@ export async function POST(req: Request) {
             '[itemprop="description"]',
             '.description',
             '#description',
-            '.product-details'
+            '.product-details',
+            // Adicionando seletores específicos para lojas VTEX
+            '.vtex-store-components-3-x-productDescriptionText',
+            '.vtex-store-components-3-x-productDescription',
+            '.vtex-product-description-0-x-container',
+            '.vtex-product-description-0-x-content',
+            '.vtex-product-description-0-x-text',
+            '.vtex-product-summary-2-x-description',
+            '.productDescription',
+            '.product-specification',
+            '.product-specification-content',
+            '.product-details-content',
+            // Seletores mais genéricos que podem conter descrições
+            '.tab-content',
+            '.product-info',
+            '.product-details-wrapper'
           ],
           images: [
             '.product-image img', 
@@ -318,19 +344,131 @@ export async function POST(req: Request) {
           ]
         };
         
+        // Extrair descrição do produto usando métodos específicos para VTEX
+        const extractVtexDescription = (returnHtml: boolean = false): string => {
+          try {
+            // Método 1: Extrair do objeto global __RUNTIME__ do VTEX
+            // @ts-ignore - O objeto __RUNTIME__ é específico do VTEX
+            if (window.__RUNTIME__) {
+              // @ts-ignore
+              const productData = window.__RUNTIME__.route?.product;
+              if (productData && productData.description) {
+                return productData.description;
+              }
+            }
+            
+            // Método 2: Extrair do dataLayer (Google Tag Manager)
+            interface WindowWithDataLayer extends Window {
+              dataLayer?: any[];
+            }
+            
+            const windowWithDataLayer = window as WindowWithDataLayer;
+            
+            if (windowWithDataLayer.dataLayer && windowWithDataLayer.dataLayer.length > 0) {
+              for (const item of windowWithDataLayer.dataLayer) {
+                if (item.event === 'productView' || item.event === 'productDetail') {
+                  if (item.ecommerce?.detail?.products?.[0]?.description) {
+                    return item.ecommerce.detail.products[0].description;
+                  }
+                }
+              }
+            }
+            
+            // Método 3: Buscar em elementos com atributos específicos
+            const descriptionElements = document.querySelectorAll('[data-specification="description"], [data-attribute="description"], [itemprop="description"]');
+            for (const element of descriptionElements) {
+              if (returnHtml) {
+                return element.innerHTML;
+              } else if (element.textContent) {
+                return element.textContent.trim();
+              }
+            }
+            
+            // Método 4: Buscar em elementos com conteúdo de texto que pareça uma descrição
+            const potentialDescriptionContainers = document.querySelectorAll('.tab-content, .product-tabs, .product-details');
+            for (const container of potentialDescriptionContainers) {
+              const tabs = container.querySelectorAll('.tab, .tab-pane, .panel');
+              for (const tab of tabs) {
+                const tabTitle = tab.querySelector('h2, h3, .title, .tab-title');
+                if (tabTitle && tabTitle.textContent) {
+                  const titleText = tabTitle.textContent.toLowerCase();
+                  if (titleText.includes('descrição') || titleText.includes('detalhes') || titleText.includes('sobre') || titleText.includes('description')) {
+                    const content = tab.querySelector('.content, .tab-content, .panel-content');
+                    if (content) {
+                      if (returnHtml) {
+                        return content.innerHTML;
+                      } else if (content.textContent) {
+                        return content.textContent.trim();
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            
+            return '';
+          } catch (e) {
+            console.error('Erro ao extrair descrição específica do VTEX:', e);
+            return '';
+          }
+        };
+        
+        // Tentar extrair descrição usando métodos específicos para VTEX primeiro
+        const vtexDescriptionText = extractVtexDescription(false);
+        const vtexDescriptionHtml = extractVtexDescription(true);
+        
+        // Combinar com os métodos genéricos
+        const descriptionText = vtexDescriptionText || extractText(selectors.description);
+        const descriptionHtml = vtexDescriptionHtml || extractHtml(selectors.description);
+        
         return {
           title: extractText(selectors.title),
           price: extractText(selectors.price),
-          description: extractText(selectors.description),
+          description: descriptionText,
+          descriptionHtml: descriptionHtml,
           images: extractImages(selectors.images)
         };
       });
+      
+      // Extrair descrição adicional do produto se ainda não foi encontrada
+      if (!productData.description) {
+        try {
+          // Tentar encontrar e clicar em abas ou botões que possam revelar a descrição
+          const descriptionTabs = await page.$$('[data-tab="description"], .description-tab, #tab-description, [data-target="#description"]');
+          
+          if (descriptionTabs.length > 0) {
+            await descriptionTabs[0].click();
+            // Usar setTimeout em vez de waitForTimeout
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Esperar a descrição aparecer
+            
+            // Tentar extrair a descrição novamente após clicar na aba
+            const descriptionResult = await page.evaluate(() => {
+              const descriptionElements = document.querySelectorAll('.product-description, #description, .description-content, .tab-content');
+              for (const element of descriptionElements) {
+                if (element) {
+                  return {
+                    text: element.textContent ? element.textContent.trim() : '',
+                    html: element.innerHTML
+                  };
+                }
+              }
+              return { text: '', html: '' };
+            });
+            
+            productData.description = descriptionResult.text;
+            productData.descriptionHtml = descriptionResult.html;
+          }
+        } catch (e) {
+          console.error('Erro ao tentar extrair descrição adicional:', e);
+        }
+      }
       
       // Criar objeto com os dados processados
       const processedData = {
         title: productData.title || '',
         price: price || productData.price || '',  // Usar o preço extraído anteriormente como prioridade
         description: productData.description || '',
+        descriptionHtml: productData.descriptionHtml || productData.description || '',
         images: productData.images || []
       };
       
